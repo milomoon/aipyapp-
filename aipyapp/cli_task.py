@@ -6,6 +6,7 @@ from pathlib import Path
 import importlib.resources as resources
 from collections import OrderedDict
 
+from loguru import logger
 from rich.console import Console
 from rich.table import Table
 from prompt_toolkit import PromptSession
@@ -13,12 +14,9 @@ from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.completion import WordCompleter
 
-from . import __version__
+from . import __version__, T, set_lang
 from .aipy import TaskManager
-from .aipy.i18n import T, set_lang
 from .aipy.config import ConfigManager, CONFIG_DIR
-
-__PACKAGE_NAME__ = "aipyapp"
 
 class CommandType(Enum):
     CMD_DONE = auto()
@@ -58,7 +56,7 @@ def show_info(console, info):
     info['Python'] = sys.executable
     info['Python version'] = sys.version
     info['Base Prefix'] = sys.base_prefix
-    table = Table(title=T("sys_info"), show_lines=True)
+    table = Table(title=T("System information"), show_lines=True)
 
     table.add_column("参数", justify="center", style="bold cyan", no_wrap=True)
     table.add_column("值", justify="right", style="bold magenta")
@@ -74,7 +72,8 @@ def show_info(console, info):
 class InteractiveConsole():
     def __init__(self, tm, console, settings):
         self.tm = tm
-        self.names = tm.llm.names
+        self.names = tm.clients.names
+        self.log = logger.bind(src='console')
         completer = WordCompleter(['/use', 'use', '/done','done', '/info', 'info'] + list(self.names['enabled']), ignore_case=True)
         self.history = FileHistory(str(Path.cwd() / settings.history))
         self.session = PromptSession(history=self.history, completer=completer)
@@ -99,17 +98,17 @@ class InteractiveConsole():
                 break
         return "\n".join(lines)
 
-    def run_task(self, task, instruction=None):
+    def run_task(self, task, instruction):
         try:
-            task.run(instruction=instruction)
+            task.run(instruction)
         except (EOFError, KeyboardInterrupt):
             pass
         except Exception as e:
             self.console.print_exception()
 
-    def start_task_mode(self, task):
-        self.console.print(f"{T('ai_mode_enter')}", style="cyan")
-        self.run_task(task)
+    def start_task_mode(self, task, instruction):
+        self.console.print(f"{T("Enter AI mode, start processing tasks, enter Ctrl+d or /done to end the task")}", style="cyan")
+        self.run_task(task, instruction)
         while True:
             try:
                 user_input = self.input_with_possible_multiline(">>> ", is_ai=True).strip()
@@ -123,20 +122,23 @@ class InteractiveConsole():
             elif cmd == CommandType.CMD_DONE:
                 break
             elif cmd == CommandType.CMD_USE:
-                ret = self.tm.llm.use(arg)
-                self.console.print('[green]Ok[/green]' if ret else '[red]Error[/red]')
+                try:
+                    task.session.use(arg)
+                    self.console.print('[green]Ok[/green]')
+                except Exception as e:
+                    self.console.print(f'[red]Error: {e}[/red]')
             elif cmd == CommandType.CMD_INVALID:
                 self.console.print(f'[red]Error: {arg}[/red]')
 
         try:
-            self.tm.done()
+            task.done()
         except Exception as e:
             self.console.print_exception()
-        self.console.print(f"{T('ai_mode_exit')}", style="cyan")
+        self.console.print(f"{T("[Exit AI mode]")}", style="cyan")
 
     def run(self):
-        self.console.print(f"{T('banner1')}", style="green")
-        self.console.print(f"[cyan]{T('default')}: [green]{self.names['default']}，[cyan]{T('enabled')}: [yellow]{' '.join(self.names['enabled'])}")
+        self.console.print(f"{T("Please enter the task to be processed by AI (enter /use <following LLM> to switch, enter /info to view system information)")}", style="green")
+        self.console.print(f"[cyan]{T("Default")}: [green]{self.names['default']}，[cyan]{T("Enabled")}: [yellow]{' '.join(self.names['enabled'])}")
         while True:
             try:
                 user_input = self.input_with_possible_multiline(">> ").strip()
@@ -145,16 +147,19 @@ class InteractiveConsole():
 
                 cmd, arg = parse_command(user_input, self.names['enabled'])
                 if cmd == CommandType.CMD_TEXT:
-                    task = self.tm.new_task(arg)
-                    self.start_task_mode(task)
+                    task = self.tm.new_task()
+                    self.start_task_mode(task, arg)
                 elif cmd == CommandType.CMD_USE:
-                    ret = self.tm.llm.use(arg)
-                    self.console.print('[green]Ok[/green]' if ret else '[red]Error[/red]')
+                    try:
+                        self.tm.clients.use(arg)
+                        self.console.print('[green]Ok[/green]')
+                    except Exception as e:
+                        self.console.print(f'[red]Error: {e}[/red]')
                 elif cmd == CommandType.CMD_INFO:
                     info = OrderedDict()
                     info['Config dir'] = str(CONFIG_DIR)
                     info['Work dir'] = str(self.tm.workdir)
-                    info['Current LLM'] = repr(self.tm.llm.current)
+                    info['Current LLM'] = repr(self.tm.clients.current)
                     show_info(self.console, info)
                 elif cmd == CommandType.CMD_EXIT:
                     break                    
@@ -166,11 +171,9 @@ class InteractiveConsole():
 def main(args):
     console = Console(record=True)
     console.print(f"[bold cyan]🚀 Python use - AIPython ({__version__}) [[green]https://aipy.app[/green]]")
-    default_config_path = resources.files(__PACKAGE_NAME__) / "default.toml"
-    conf = ConfigManager(default_config_path, args.config_dir)
+    conf = ConfigManager(args.config_dir)
     conf.check_config()
     settings = conf.get_config()
-    #console.print(T('env_info').format(CONFIG_DIR, conf.get_work_dir()))
 
     lang = settings.get('lang')
     if lang: set_lang(lang)
@@ -187,10 +190,10 @@ def main(args):
 
     update = tm.get_update()
     if update and update.get('has_update'):
-        console.print(f"[bold red]🔔 号外❗ {T('update_available')}: {update.get('latest_version')}")
+        console.print(f"[bold red]🔔 号外❗ {T("Update available")}: {update.get('latest_version')}")
 
-    if not tm.llm:
-        console.print(f"[bold red]{T('no_available_llm')}")
+    if not tm.clients:
+        console.print(f"[bold red]{T("No available LLM, please check the configuration file")}")
         return
     
     if args.cmd:

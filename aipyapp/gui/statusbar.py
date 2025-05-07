@@ -2,7 +2,8 @@ import os
 import sys
 import subprocess
 import wx
-from ..aipy.i18n import T
+
+from .. import T
 
 class CStatusBar(wx.StatusBar):
     def __init__(self, parent):
@@ -12,8 +13,8 @@ class CStatusBar(wx.StatusBar):
         self.SetStatusWidths([-1, 30, 80])
 
         self.tm = parent.tm
-        self.current_llm = self.tm.llm.names['default']
-        self.enabled_llm = list(self.tm.llm.names['enabled'])
+        self.current_llm = self.tm.clients.names['default']
+        self.enabled_llm = list(self.tm.clients.names['enabled'])
         self.menu_items = self.enabled_llm
         self.radio_group = []
 
@@ -68,4 +69,4 @@ class CStatusBar(wx.StatusBar):
             else:
                 subprocess.call(['xdg-open', work_dir])
         else:
-            wx.MessageBox(T('Work directory does not exist'), T('Error'), wx.OK | wx.ICON_ERROR) 
+            wx.MessageBox(T('Work directory does not exist'), T("Error"), wx.OK | wx.ICON_ERROR) 

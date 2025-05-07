@@ -6,8 +6,8 @@ import qrcode
 import io
 from PIL import Image
 
-from aipyapp.aipy.i18n import T
-from aipyapp.aipy.trustoken import TrustTokenAPI
+from .. import T
+from ..aipy.trustoken import TrustTokenAPI
 
 class TrustTokenAuthDialog(wx.Dialog):
     """A dialog for TrustToken authentication with QR code display."""
@@ -21,7 +21,7 @@ class TrustTokenAuthDialog(wx.Dialog):
             coordinator_url (str, optional): The coordinator server URL
             poll_interval (int, optional): Polling interval in seconds
         """
-        super().__init__(parent, title=T('trust_token_auth'), 
+        super().__init__(parent, title=T("TrustToken Authentication"), 
                         size=(400, 500), 
                         style=wx.DEFAULT_DIALOG_STYLE )
         
@@ -61,7 +61,7 @@ class TrustTokenAuthDialog(wx.Dialog):
         main_sizer.Add(self.time_text, 0, wx.ALL | wx.ALIGN_CENTER, 5)
         
         # Buttons
-        self.cancel_button = wx.Button(self, wx.ID_CANCEL, T('cancel'))
+        self.cancel_button = wx.Button(self, wx.ID_CANCEL, T("Cancel"))
         main_sizer.Add(self.cancel_button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         
         self.SetSizer(main_sizer)
@@ -84,7 +84,7 @@ class TrustTokenAuthDialog(wx.Dialog):
             time_remaining = int(self.polling_timeout - elapsed)
             
         wx.CallAfter(self.progress_bar.SetValue, progress)
-        wx.CallAfter(self.time_text.SetLabel, T('Time remaining', time_remaining))
+        wx.CallAfter(self.time_text.SetLabel, T("Time remaining: {} seconds", time_remaining))
         
     def _poll_status(self, save_func):
         """Poll the binding status in a separate thread."""
@@ -99,7 +99,7 @@ class TrustTokenAuthDialog(wx.Dialog):
                 continue
                 
             status = data.get('status')
-            wx.CallAfter(self._update_status, T('current_status', T(status)))
+            wx.CallAfter(self._update_status, T("Current status: {}...", T(status)))
             
             if status == 'approved':
                 if save_func:
@@ -107,20 +107,20 @@ class TrustTokenAuthDialog(wx.Dialog):
                 wx.CallAfter(self.EndModal, wx.ID_OK)
                 return True
             elif status == 'expired':
-                wx.CallAfter(self._update_status, T('binding_expired'))
+                wx.CallAfter(self._update_status, T("\nBinding request expired."))
                 wx.CallAfter(self.EndModal, wx.ID_CANCEL)
                 return False
             elif status == 'pending':
                 pass
             else:
-                wx.CallAfter(self._update_status, T('unknown_status', status))
+                wx.CallAfter(self._update_status, T("\nUnknown status received: {}", status))
                 wx.CallAfter(self.EndModal, wx.ID_CANCEL)
                 return False
                 
             time.sleep(self.poll_interval)
             
         if not self.stop_polling:
-            wx.CallAfter(self._update_status, T('polling_timeout'))
+            wx.CallAfter(self._update_status, T("\nPolling timed out."))
             wx.CallAfter(self.EndModal, wx.ID_CANCEL)
         return False
         
@@ -159,7 +159,7 @@ class TrustTokenAuthDialog(wx.Dialog):
             self.qr_bitmap.SetBitmap(wx.Bitmap(wx_img))
             self.Layout()
         except Exception as e:
-            wx.MessageBox(T('qr_code_display_failed', e), T('Error'), wx.OK | wx.ICON_ERROR)
+            wx.MessageBox(T("(Could not display QR code: {})\n", e), T("Error"), wx.OK | wx.ICON_ERROR)
             
     def _update_status(self, status):
         """Update the status text."""
@@ -175,17 +175,17 @@ class TrustTokenAuthDialog(wx.Dialog):
         Returns:
             bool: True if token was successfully fetched and saved, False otherwise.
         """
-        self._update_status(T('requesting_binding'))
+        self._update_status(T("Request binding"))
         data = self.api.request_binding()
         if not data:
-            wx.MessageBox(T('binding_request_failed', None), T('Error'), wx.OK | wx.ICON_ERROR)
+            wx.MessageBox(T("\nFailed to initiate binding request.", None), T("Error"), wx.OK | wx.ICON_ERROR)
             return False
             
         approval_url = data['approval_url']
         self.request_id = data['request_id']
         expires_in = data['expires_in']
         self.polling_timeout = expires_in
-        self._update_status(T('current_status', T('waiting_for_approval')))
+        self._update_status(T("Current status: {}...", T("Waiting for approval")))
         self._update_qr_code(approval_url)
         
         # Start polling in a separate thread
@@ -209,7 +209,8 @@ if __name__ == "__main__":
         # config_manager.save_tt_config(token)
     
     # Create and show the dialog
-    dialog = TrustTokenAuthDialog(None)
+    url = os.getenv('COORDINATOR_URL', 'https://api.trustoken.cn/api')
+    dialog = TrustTokenAuthDialog(coordinator_url=url)
     if dialog.fetch_token(save_token):
         print("Authentication successful!")
     else:

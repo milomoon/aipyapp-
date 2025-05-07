@@ -1,8 +1,8 @@
 import wx
 import importlib.resources as resources
-from .. import __version__
-from aipyapp.aipy.config import CONFIG_DIR
-from aipyapp.aipy.i18n import T
+
+from .. import __version__, T
+from ..aipy.config import CONFIG_DIR
 
 class AboutDialog(wx.Dialog):
     def __init__(self, parent):
@@ -16,20 +16,20 @@ class AboutDialog(wx.Dialog):
         logo_panel = wx.Panel(self)
         logo_sizer = wx.BoxSizer(wx.HORIZONTAL)
         
-        try:
-            icon_path = str(resources.files(__package__) / "aipy.ico")
-            icon = wx.Icon(icon_path, wx.BITMAP_TYPE_ICO)
-            bitmap = wx.StaticBitmap(logo_panel, -1, icon.ConvertToBitmap())
-            logo_sizer.Add(bitmap, 0, wx.ALL | wx.ALIGN_CENTER, 10)
-        except:
-            pass
+        with resources.path("aipyapp.res", "aipy.ico") as icon_path:
+            icon = wx.Icon(str(icon_path), wx.BITMAP_TYPE_ICO)
+            bmp = wx.Bitmap()
+            bmp.CopyFromIcon(icon)
+            # Scale the bitmap to a more appropriate size
+            scaled_bmp = wx.Bitmap(bmp.ConvertToImage().Scale(48, 48, wx.IMAGE_QUALITY_HIGH))
+            logo_sizer.Add(wx.StaticBitmap(logo_panel, -1, scaled_bmp), 0, wx.ALL | wx.ALIGN_CENTER, 5)
             
         title = wx.StaticText(logo_panel, -1, "爱派")
         title.SetFont(wx.Font(24, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-        logo_sizer.Add(title, 0, wx.ALL | wx.ALIGN_CENTER, 10)
+        logo_sizer.Add(title, 0, wx.ALL | wx.ALIGN_CENTER, 5)
         
         logo_panel.SetSizer(logo_sizer)
-        vbox.Add(logo_panel, 0, wx.ALL | wx.ALIGN_CENTER, 10)
+        vbox.Add(logo_panel, 0, wx.ALL | wx.ALIGN_CENTER, 5)
         
         # Version and description
         version = wx.StaticText(self, -1, f"版本: {__version__}")
@@ -37,9 +37,6 @@ class AboutDialog(wx.Dialog):
         
         description = wx.StaticText(self, -1, "爱派是一个智能助手，可以帮助您完成各种任务。")
         vbox.Add(description, 0, wx.ALL | wx.ALIGN_CENTER, 5)
-        
-        # Add some space
-        vbox.AddSpacer(15)
         
         tm = parent.tm
         # Configuration directory

@@ -12,6 +12,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
 ADD . /app
+COPY docker/entrypoint.sh /app/entrypoint.sh
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 

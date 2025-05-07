@@ -15,21 +15,23 @@ import importlib.resources as resources
 import wx
 import wx.html2
 import matplotlib
+from loguru import logger
 import matplotlib.pyplot as plt
 from rich.console import Console
 from wx.lib.newevent import NewEvent
 from wx import FileDialog, FD_SAVE, FD_OVERWRITE_PROMPT
 from wx.lib.agw.hyperlink import HyperLinkCtrl
 
-from . import __version__
-from .aipy.config import ConfigManager
-from .aipy import TaskManager, event_bus
-from .aipy.i18n import T, set_lang
-from .gui import TrustTokenAuthDialog, ConfigDialog, AboutDialog, CStatusBar
+from .. import __version__, T, set_lang, event_bus
+from ..aipy.config import ConfigManager
+from ..aipy import TaskManager
+from . import TrustTokenAuthDialog, ConfigDialog, AboutDialog, CStatusBar
+from .apimarket import ApiMarketDialog
 
 ChatEvent, EVT_CHAT = NewEvent()
 AVATARS = {'我': '🧑', 'BB-8': '🤖', '图灵': '🧠', '爱派': '🐙'}
 TITLE = "🐙爱派，您的干活牛🐂马🐎，啥都能干！"
+RESOURCES = "aipyapp.res"
 
 matplotlib.use('Agg')
 
@@ -52,12 +54,17 @@ class AIPython(threading.Thread):
         super().__init__(daemon=True)
         self.gui = gui
         self.tm = gui.tm
+        self._task = None
         self._busy = threading.Event()
         plt.show = self.on_plt_show
         sys.modules["matplotlib.pyplot"] = plt
+        self.log = logger.bind(src='aipython')
+
+    def has_task(self):
+        return self._task is not None
 
     def can_done(self):
-        return not self._busy.is_set() and self.tm.busy
+        return not self._busy.is_set() and self.has_task()
 
     def on_plt_show(self, *args, **kwargs):
         filename = f'{time.strftime("%Y%m%d_%H%M%S")}.png'
@@ -90,9 +97,9 @@ class AIPython(threading.Thread):
         evt = ChatEvent(user=user, msg=f'结束处理指令 {summary}')
         wx.PostEvent(self.gui, evt)
 
-    def on_exec(self, blocks):
+    def on_exec(self, block):
         user = 'BB-8'
-        content = f"```python\n{blocks['main']}\n```"
+        content = f"```python\n{block['content']}\n```"
         evt = ChatEvent(user=user, msg=content)
         wx.PostEvent(self.gui, evt)
 
@@ -111,16 +118,24 @@ class AIPython(threading.Thread):
         event_bus.register("display", self.on_display)
         while True:
             instruction = self.gui.get_task()
+            instruction = instruction.strip()
             if instruction in ('/done', 'done'):
-                self.tm.done()
+                if self._task:
+                    self._task.done()
+                    self._task = None
+                else:
+                    self.log.warning("没有正在进行的任务")
+                wx.CallAfter(self.gui.on_task_done)
             elif instruction in ('/exit', 'exit'):
                 break
             else:
+                self._busy.set()
                 try:
-                    self._busy.set()
-                    self.tm(instruction)
+                    if not self._task:
+                        self._task = self.tm.new_task()
+                    self._task.run(instruction)
                 except Exception as e:
-                    traceback.print_exc()
+                    self.log.exception('Error running task')
                 finally:
                     self._busy.clear()
                 wx.CallAfter(self.gui.toggle_input)
@@ -143,10 +158,13 @@ class ChatFrame(wx.Frame):
         self.tm = tm
         self.task_queue = queue.Queue()
         self.aipython = AIPython(self)
-        self.chat_html = "file://" + os.path.abspath(resources.files(__package__) / "chatroom.html")
 
-        icon = wx.Icon(str(resources.files(__package__) / "gui" / "aipy.ico"), wx.BITMAP_TYPE_ICO)
-        self.SetIcon(icon)
+        self.chat_html = resources.read_text(RESOURCES, "chatroom.html")
+        self.base_url = f"file://{tm.workdir / 'index.html'}"
+
+        with resources.path(RESOURCES, "aipy.ico") as icon_path:
+            icon = wx.Icon(str(icon_path), wx.BITMAP_TYPE_ICO)
+            self.SetIcon(icon)
 
         self.SetBackgroundColour(wx.Colour(245, 245, 245))
         self.make_menu_bar()
@@ -160,7 +178,7 @@ class ChatFrame(wx.Frame):
         self.Show()
         update = self.tm.get_update()
         if update and update.get('has_update'):
-            wx.CallLater(1000, self.append_message, '爱派', f"\n🔔 **号外❗** {T('update_available')}: `v{update.get('latest_version')}`")
+            wx.CallLater(1000, self.append_message, '爱派', f"\n🔔 **号外❗** {T("Update available")}: `v{update.get('latest_version')}`")
 
     def make_input_panel(self, panel):
         self.container = wx.Panel(panel)
@@ -213,7 +231,7 @@ class ChatFrame(wx.Frame):
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         self.webview = wx.html2.WebView.New(panel)
-        self.webview.LoadURL(self.chat_html)
+        self.webview.SetPage(self.chat_html, self.base_url)
         self.webview.SetWindowStyleFlag(wx.BORDER_NONE)
         vbox.Add(self.webview, proportion=1, flag=wx.EXPAND | wx.ALL, border=12)
 
@@ -243,13 +261,25 @@ class ChatFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_exit, id=wx.ID_EXIT)
 
         edit_menu = wx.Menu()
-        edit_menu.Append(wx.ID_CLEAR, T('Clear chat') + "(&C)", T('Clear all messages'))
+        edit_menu.Append(wx.ID_CLEAR, T("Clear chat") + "(&C)", T("Clear all messages"))
         edit_menu.AppendSeparator()
         self.ID_CONFIG = wx.NewIdRef()
-        menu_item = wx.MenuItem(edit_menu, self.ID_CONFIG, T('Configuration') + "(&O)\tCtrl+O", T('Configure program parameters'))
+        menu_item = wx.MenuItem(edit_menu, self.ID_CONFIG, T("Configuration") + "(&O)\tCtrl+O", T("Configure program parameters"))
         edit_menu.Append(menu_item)
         self.Bind(wx.EVT_MENU, self.on_config, id=self.ID_CONFIG)
         self.Bind(wx.EVT_MENU, self.on_clear_chat, id=wx.ID_CLEAR)
+
+        # Add API配置 menu item
+        self.ID_API_CONFIG = wx.NewIdRef()
+        menu_item = wx.MenuItem(edit_menu, self.ID_API_CONFIG, "API配置(&A)\tCtrl+A", "配置API市场")
+        edit_menu.Append(menu_item)
+        self.Bind(wx.EVT_MENU, self.on_api_config, id=self.ID_API_CONFIG)
+
+        # Add API配置 menu item
+        self.ID_API_CONFIG = wx.NewIdRef()
+        menu_item = wx.MenuItem(edit_menu, self.ID_API_CONFIG, "API配置(&A)\tCtrl+A", "配置API市场")
+        edit_menu.Append(menu_item)
+        self.Bind(wx.EVT_MENU, self.on_api_config, id=self.ID_API_CONFIG)
 
         task_menu = wx.Menu()
         self.task_done_menu = task_menu.Append(wx.ID_STOP, "开始新任务(&B)", "开始一个新任务")
@@ -298,7 +328,9 @@ class ChatFrame(wx.Frame):
         self.Close()
 
     def on_done(self, event):
-        self.tm.done()
+        self.task_queue.put('/done')
+
+    def on_task_done(self):
         self.done_button.Hide()
         self.SetStatusText("当前任务已结束", 0)
         self.task_done_menu.Enable(False)
@@ -400,7 +432,7 @@ class ChatFrame(wx.Frame):
         if not text:
             return
         
-        if not self.tm.busy:
+        if not self.aipython.has_task():
             self.SetTitle(f"[当前任务] {text}")
 
         self.append_message('我', text)
@@ -441,13 +473,19 @@ class ChatFrame(wx.Frame):
                 dialog.ShowModal()
                 dialog.Destroy()
             else:
-                dialog = ShareResultDialog(self, None, msg)
+                dialog = ShareResultDialog(self, None, result.get('error'))
                 dialog.ShowModal()
                 dialog.Destroy()
         except Exception as e:
-            dialog = ShareResultDialog(self, None, msg)
+            dialog = ShareResultDialog(self, None, str(e))
             dialog.ShowModal()
             dialog.Destroy()
+
+    def on_api_config(self, event):
+        """打开API配置对话框"""
+        dialog = ApiMarketDialog(self, self.tm.config_manager)
+        dialog.ShowModal()
+        dialog.Destroy()
 
 class ShareResultDialog(wx.Dialog):
     def __init__(self, parent, url, error=None):
@@ -495,10 +533,10 @@ class ShareResultDialog(wx.Dialog):
 
 def main(args):
     app = wx.App(False)
-    default_config_path = resources.files(__package__) / "default.toml"
-    conf = ConfigManager(default_config_path, args.config_dir)
+    conf = ConfigManager(args.config_dir)
     if conf.check_config(gui=True) == 'TrustToken':
-        dialog = TrustTokenAuthDialog()
+        url = conf.get_region_api('coordinator_url')
+        dialog = TrustTokenAuthDialog(coordinator_url=url)
         if dialog.fetch_token(conf.save_tt_config):
             conf.reload_config()
         else:

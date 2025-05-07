@@ -3,29 +3,18 @@
 
 import os
 import re
-import sys
-from functools import wraps
+
+from importlib.resources import read_text
 
 from rich.panel import Panel
 
-from .i18n import T
-from .templates import DISCLAIMER_TEXT
+from .. import T, __resources__
 
-def restore_output(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        old_stdout, old_stderr = sys.stdout, sys.stderr
-        sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
-
-        try:
-            return func(self, *args, **kwargs)
-        finally:
-            sys.stdout, sys.stderr = old_stdout, old_stderr
-    return wrapper
+DISCLAIMER_TEXT = read_text(__resources__, "DISCLAIMER.md")
 
 def confirm(console, prompt, default="n", auto=None):
     if auto in (True, False):
-        console.print(f"✅ {T('auto_confirm')}")
+        console.print(f"✅ {T("Auto confirm")}")
         return auto
     while True:
         response = console.input(prompt).strip().lower()
@@ -34,9 +23,6 @@ def confirm(console, prompt, default="n", auto=None):
         if response in ["y", "n"]:
             break
     return response == "y"
-
-    cp = subprocess.run([sys.executable, "-m", "pip", "install"] + packages)
-    return cp.returncode == 0
 
 def confirm_disclaimer(console):
     console.print()

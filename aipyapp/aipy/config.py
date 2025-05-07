@@ -13,7 +13,7 @@ from rich import print
 import tomli_w
 import qrcode
 
-from .i18n import T
+from .. import T, __resources_path__, get_system_language
 from .trustoken import TrustToken
 import traceback
 
@@ -28,6 +28,7 @@ OLD_SETTINGS_FILES = [
 
 CONFIG_FILE_NAME = f"{__PACKAGE_NAME__}.toml"
 USER_CONFIG_FILE_NAME = "user_config.toml"
+LANG = get_system_language()
 
 def init_config_dir():
     """
@@ -38,10 +39,10 @@ def init_config_dir():
     try:
         config_dir.mkdir(parents=True, exist_ok=True)
     except PermissionError:
-        print(T('permission_denied_error').format(config_dir))
+        print(T("Permission denied to create directory: {}").format(config_dir))
         raise
     except Exception as e:
-        print(T('error_creating_config_dir').format(config_dir, str(e)))
+        print(T("Error creating configuration directory: {}").format(config_dir, str(e)))
         raise
 
     return config_dir
@@ -65,7 +66,7 @@ def get_config_file_path(config_dir=None, file_name=CONFIG_FILE_NAME):
         try:
             config_file_path.touch()
         except Exception as e:
-            print(T('error_creating_config_dir').format(config_file_path))
+            print(T("Error creating configuration directory: {}").format(config_file_path))
             raise
 
     return config_file_path
@@ -86,14 +87,36 @@ def is_valid_api_key(api_key):
     pattern = r"^[A-Za-z0-9_-]{8,128}$"
     return bool(re.match(pattern, api_key))
 
+def get_region_api(name, config):
+    """ 获取特定的内部API地址, 参考default.toml
+    """
+    tt_api = config.get('tt_api', {})
+    conf = tt_api.get(name, {})
+    url = conf.get(LANG)
+    return url
+
 class ConfigManager:
-    def __init__(self, default_config="default.toml",  config_dir=None):
+    def __init__(self, config_dir=None):
+        self.lang = get_system_language()
         self.config_file = get_config_file_path(config_dir)
         self.user_config_file = get_config_file_path(config_dir, USER_CONFIG_FILE_NAME)
-        self.default_config = default_config
+        self.default_config = __resources_path__ / "default.toml"
         self.config = self._load_config()
-        self.trust_token = TrustToken()
-
+        # TODO：临时API配置
+        self.config.update({
+            'api': {
+                'tt-map': {
+                    'env': {
+                        'amap_api_key': ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","最新高德地图 API Key"],
+                    },
+                    'desc': "高德地图（驾车、骑行、步行、公交路线规划，周边关键字搜索，天气查询，交通态势、店铺查询, 无法确定POI分类编码时请用关键字搜索API）"
+                }
+            }
+        })
+        
+        #print(self.config.to_dict())
+        coordinator_url = self.get_region_api('coordinator_url')
+        self.trust_token = TrustToken(coordinator_url=coordinator_url)
 
     def get_work_dir(self):
         if self.config.workdir:
@@ -132,6 +155,7 @@ class ConfigManager:
 
     def reload_config(self):
         self.config = self._load_config()
+        return self.config
 
     def get_config(self):
         return self.config
@@ -178,12 +202,13 @@ class ConfigManager:
         return config
 
     def save_tt_config(self, api_key):
+        base_url = self.get_region_api('llm_base_url')
         config = {
             'llm': {
                 'trustoken': {
                     'api_key': api_key,
                     'type': 'trust',
-                    'base_url': 'https://api.trustoken.ai/v1',
+                    'base_url': base_url,
                     'model': 'auto',
                     'default': True,
                     'enable': True
@@ -200,7 +225,7 @@ class ConfigManager:
         """
         llm = self.config.get("llm")
         if not llm:
-            print(T('llm_config_not_found'))
+            print(T("Missing 'llm' configuration."))
 
         llms = {}
         for name, config in self.config.get('llm', {}).items():
@@ -220,7 +245,7 @@ class ConfigManager:
         """
         try:
             if not self.config:
-                print(T('config_not_loaded'))
+                print(T("Configuration not loaded."))
                 return
 
             if self.check_llm():
@@ -239,7 +264,7 @@ class ConfigManager:
                 self.reload_config()
 
             if not self.check_llm():
-                print(T('llm_config_not_found'))
+                print(T("Missing 'llm' configuration."))
                 sys.exit(1)
 
         except Exception as e:
@@ -294,7 +319,7 @@ class ConfigManager:
         if not combined_toml_content:
             return
 
-        print(T('attempting_migration').format(', '.join(migrated_files), ', '.join(backup_files)))
+        print(T("Found old configuration files: {}\nAttempting to migrate configuration from these files...\nAfter migration, these files will be backed up to {}, please check them.").format(', '.join(migrated_files), ', '.join(backup_files)))
 
         # Write combined content to user_config.toml
         try:
@@ -302,7 +327,7 @@ class ConfigManager:
                 f.write(f"# Migrated from: {', '.join(migrated_files)}\n")
                 f.write(f"# Original files backed up to: {', '.join(backup_files)}\n\n")
                 f.write(combined_toml_content)
-                print(T('migrate_user_config').format(self.user_config_file))
+                print(T("Successfully migrated old version user configuration to {}").format(self.user_config_file))
         except Exception as e:
             return
 
@@ -317,7 +342,7 @@ class ConfigManager:
                     if api_key:
                         #print("Token found:", api_key)
                         self.save_tt_config(api_key)
-                        print(T('migrate_config').format(self.config_file))
+                        print(T("Successfully migrated old version trustoken configuration to {}").format(self.config_file))
                         break
 
         except Exception as e:
@@ -342,7 +367,7 @@ class ConfigManager:
         base_url = config.get('base_url', config.get('base-url', '')).lower()
         # 条件2: base_url包含目标域名
         if isinstance(config, dict) and base_url:
-            if 'trustoken.ai' in base_url:
+            if 'trustoken.' in base_url:
                 return True
 
         # 条件3: 其他特定标记
@@ -351,3 +376,9 @@ class ConfigManager:
             return True
         
         return False
+    
+    def get_region_api(self, name):
+        """ 获取特定的内部API地址, 参考default.toml
+        """
+        url = get_region_api(name, self.config)
+        return url

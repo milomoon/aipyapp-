@@ -4,25 +4,16 @@
 import os
 import sys
 
+if "pythonw" in sys.executable.lower():
+    sys.stdout = open(os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")
+
 from loguru import logger
 
 from .aipy.config import CONFIG_DIR
 
 logger.remove()
 logger.add(CONFIG_DIR / "aipyapp.log", format="{time:HH:mm:ss} | {level} | {message} | {extra}", level='INFO')
-
-class Logger:
-    def __init__(self, file_path=os.devnull):
-        self.terminal = sys.stdout
-        self.log = open(file_path, "a", encoding="utf-8")
-
-    def write(self, message):
-        self.terminal.write(message)
-        self.log.write(message)
-
-    def flush(self):
-        self.terminal.flush()
-        self.log.flush()
 
 def parse_args():
     import argparse
@@ -54,22 +45,19 @@ def ensure_wxpython():
 
 def mainw():
     args = parse_args()
-    if not args.debug:
-        sys.stdout = Logger()
-        sys.stderr = Logger()
     ensure_wxpython()
-    from .wxgui import main as aipy_main
+    from .gui.main import main as aipy_main
     aipy_main(args)
 
 def main():
     args = parse_args()
     if args.python:
-        from .main import main as aipy_main
+        from .cli_python import main as aipy_main
     elif args.gui:
         ensure_wxpython()
-        from .wxgui import main as aipy_main
+        from .gui.main import main as aipy_main
     else:
-        from .saas import main as aipy_main
+        from .cli_task import main as aipy_main
     aipy_main(args)
 
 if __name__ == '__main__':

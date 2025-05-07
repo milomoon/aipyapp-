@@ -1,0 +1,125 @@
+id,zh
+Start processing instruction,开始处理指令
+Start executing code block,开始执行代码块
+Start parsing message,开始解析消息
+Code Blocks,代码块
+Execution result,执行结果
+Start sending feedback,开始反馈结果
+End processing instruction,结束处理指令
+No context information found,未找到上下文信息
+Article uploaded successfully,文章上传成功
+Upload failed (status code: {}),上传失败 (状态码: {})
+Severe warning: This will reinitialize❗❗❗,严重警告：这将重新初始化❗❗❗
+"If you are sure to continue, enter y",如果你确定要继续，请输入 y
+reply,响应
+Environment variable name and meaning,环境变量名称和意义
+Description,描述
+Unsupported file format,不支持的文件格式
+Request to install third-party packages,申请安装第三方包
+"If you agree, please enter",如果同意，请输入
+"Request to obtain environment variable {}, purpose",申请获取环境变量 {}，用途
+"Environment variable {} exists, returned for code use",环境变量 {} 存在，返回给代码使用
+"Environment variable {} not found, please enter",未找到环境变量 {}，请输入
+Call failed,调用失败
+Think,思考
+Current environment does not support publishing,当前环境不支持发布
+Auto confirm,自动确认
+Third-party packages have been installed,申请的第三方包已经安装
+"is thinking hard, please wait 6-60 seconds",正在绞尽脑汁思考中，请稍等6-60秒
+"No available LLM, please check the configuration file",没有可用的 LLM，请检查配置文件
+"Please use ai('task') to enter the task to be processed by AI (enter ai.use(llm) to switch to the following LLM:",请用 ai('任务') 输入需要 AI 处理的任务 (输入 ai.use(llm) 切换下述 LLM：
+"Please enter the task to be processed by AI (enter /use <following LLM> to switch, enter /info to view system information)",请输入需要 AI 处理的任务 (输入 /use <下述 LLM> 切换，输入 /info 查看系统信息)
+Default,默认
+Enabled,已启用
+"Enter AI mode, start processing tasks, enter Ctrl+d or /done to end the task",进入 AI 模式，开始处理任务，输入 Ctrl+d 或 /done 结束任务
+"[Exit AI mode]","[退出 AI 模式]"
+"[AI mode] Unknown command","[AI 模式] 未知命令"
+Task Summary,任务总结
+Round,轮次
+Time(s),时间(秒)
+In Tokens,输入令牌数
+Out Tokens,输出令牌数
+Total Tokens,总令牌数
+"Sending msg to {}",正在向 {} 发送消息
+"Error loading configuration: {}",加载配置时出错: {}
+Please check the configuration file path and format.,请检查配置文件路径和格式。
+Configuration not loaded.,配置尚未加载。
+Missing 'llm' configuration.,缺少 'llm' 配置。
+Not usable,不可用
+"Permission denied to create directory: {}",无权限创建目录: {}
+"Error creating configuration directory: {}",创建配置目录时出错: {}
+"Successfully migrated old version trustoken configuration to {}",成功的将旧版本trustoken配置迁移到 {}
+"Successfully migrated old version user configuration to {}",成功的将旧版本用户配置迁移到 {}
+"Binding request sent successfully.\nRequest ID: {}\n\n>>> Please open this URL in your browser on an authenticated device to approve:\n>>> {}\n\n(This link expires in {} seconds)","绑定请求发送成功。\n请求ID: {}\n\n>>> 请在已认证设备的浏览器中打开以下链接以批准:\n>>> {}\n\n(该链接将在{}秒后过期)"
+Or scan the QR code below:,或者扫描下方二维码：
+"We recommend you scan the QR code to bind the AiPy brain, you can also configure a third-party large model brain, details refer to: https://d.aipy.app/d/77",推荐您手机扫码绑定AiPy大脑，您也可以配置第三方大模型大脑，详情参考：https://d.aipy.app/d/77
+"(Could not display QR code: {})\n","(无法显示二维码: {})\n"
+"Error connecting to coordinator or during request: {}",连接到协调服务器或请求时出错: {}
+"An unexpected error occurred during request: {}",请求过程中发生意外错误: {}
+Waiting for approval,等待扫码授权
+"Current status: {}...",当前状态: {}...
+"\nBinding request expired.","\n绑定请求已过期。"
+"\nUnknown status received: {}","\n收到未知状态: {}"
+"Error connecting to coordinator during polling: {}",轮询协调服务器时出错: {}
+"An unexpected error occurred during polling: {}",轮询过程中发生意外错误: {}
+"\nPolling cancelled by user.","\n用户取消了轮询。"
+"\nPolling timed out.","\n轮询超时。"
+"The current environment lacks the required configuration file. Starting the configuration initialization process to bind with the Trustoken account...",当前环境缺少必需的配置文件，开始进行配置初始化流程，与trustoken账号绑定即可自动获取配置...
+"\nBinding process completed successfully.","\n绑定流程已成功完成。"
+"\nBinding process failed or was not completed.","\n绑定流程失败或未完成。"
+"\nFailed to initiate binding request.","\n绑定请求发起失败。"
+Cancel,取消
+TrustToken Authentication,TrustToken 认证
+Error,错误
+"Time remaining: {} seconds",剩余时间：{} 秒
+Approved,已批准
+Expired,已过期
+Pending,待处理
+"Found old configuration files: {}\nAttempting to migrate configuration from these files...\nAfter migration, these files will be backed up to {}, please check them.",发现旧的配置文件: {}\n尝试从这些文件迁移配置...\n迁移之后，这些文件会被备份到 {}，请注意查看。
+Result file saved,结果文件已保存
+"Current configuration file directory: {} Working directory: {}",当前配置文件目录：{} 工作目录: {}
+System information,系统信息
+Save chat history as HTML,保存聊天记录为 HTML
+Clear chat,清空聊天
+Exit,退出
+Start new task,开始新任务
+Website,官网
+Forum,论坛
+WeChat Group,微信群
+About,关于
+Help,帮助
+File,文件
+Edit,编辑
+Task,任务
+Current task has ended,当前任务已结束
+"Operation in progress, please wait...","操作进行中，请稍候..."
+"Operation completed. If you want to start the next task, please click the `End` button","操作完成。如果开始下一个任务，请点击`结束`按钮"
+Press Ctrl+Enter to send message,按 Ctrl+Enter 发送消息
+Save chat history as HTML file,保存聊天记录为 HTML 文件
+Exit program,退出程序
+Clear all messages,清除所有消息
+Start a new task,开始一个新任务
+Official website,官方网站
+Official forum,官方论坛
+Official WeChat group,官方微信群
+About AIPY,关于爱派
+Configuration,配置
+Configure program parameters,配置程序参数
+Work Directory,工作目录
+Browse...,浏览...
+Select work directory,选择工作目录
+Max Tokens,最大Token数
+"Timeout (seconds)",超时时间(秒)
+Max Rounds,最大执行轮数
+OK,确定
+"AIPY is an intelligent assistant that can help you complete various tasks.","爱派是一个智能助手，可以帮助您完成各种任务。"
+Current configuration directory,当前配置目录
+Current working directory,当前工作目录
+Version,版本
+AIPY Team,爱派团队
+You can create a new directory in the file dialog,您可以在文件对话框中选择或创建新目录
+Settings,设置
+Open work directory,打开工作目录
+Open work directory in file manager,在文件管理器中打开工作目录
+Request binding,正在申请绑定
+Update available,有新版本可用 

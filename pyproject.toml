@@ -20,6 +20,8 @@ dependencies = [
     "tomli-w>=1.2.0",
     "qrcode>=8.1",
     "loguru>=0.7.3",
+    "diff-match-patch>=20241021",
+    "wxpython>=4.2.3",
 ]
 
 [project.scripts]

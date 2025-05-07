@@ -15,12 +15,9 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.history import FileHistory
 from pygments.lexers.python import PythonLexer
 
-from . import __version__
+from . import __version__, T, set_lang
 from .aipy import TaskManager
-from .aipy.i18n import T, set_lang
 from .aipy.config import ConfigManager
-
-__PACKAGE_NAME__ = "aipyapp"
 
 class PythonCompleter(WordCompleter):
     def __init__(self, ai):
@@ -29,15 +26,10 @@ class PythonCompleter(WordCompleter):
         names += [f"ai.{attr}" for attr in dir(ai) if not attr.startswith('_')]
         super().__init__(names, ignore_case=True)
     
-def get_default_config():
-    default_config_path = resources.files(__PACKAGE_NAME__) / "default.toml"
-    return str(default_config_path)
-
 def main(args):
     console = Console(record=True)
     console.print(f"[bold cyan]🚀 Python use - AIPython ({__version__}) [[green]https://aipy.app[/green]]")
-
-    conf = ConfigManager(get_default_config(), args.config_dir)
+    conf = ConfigManager(args.config_dir)
     conf.check_config()
     settings = conf.get_config()
 
@@ -52,15 +44,15 @@ def main(args):
 
     update = ai.get_update(True)
     if update and update.get('has_update'):
-        console.print(f"[bold red]🔔 号外❗ {T('update_available')}: {update.get('latest_version')}")
+        console.print(f"[bold red]🔔 号外❗ {T("Update available")}: {update.get('latest_version')}")
 
-    if not ai.llm:
-        console.print(f"[bold red]{T('no_available_llm')}")
+    if not ai.clients:
+        console.print(f"[bold red]{T("No available LLM, please check the configuration file")}")
         return
     
-    names = ai.llm.names
-    console.print(f"{T('banner1_python')}", style="green")
-    console.print(f"[cyan]{T('default')}: [green]{names['default']}，[cyan]{T('enabled')}: [yellow]{' '.join(names['enabled'])}")
+    names = ai.clients.names
+    console.print(f"{T("Please use ai('task') to enter the task to be processed by AI (enter ai.use(llm) to switch to the following LLM:")}", style="green")
+    console.print(f"[cyan]{T("Default")}: [green]{names['default']}，[cyan]{T("Enabled")}: [yellow]{' '.join(names['enabled'])}")
 
     interp = code.InteractiveConsole({'ai': ai})
 

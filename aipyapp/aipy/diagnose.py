@@ -18,7 +18,8 @@ from aipyapp import __version__
 from aipyapp.aipy.config import CONFIG_DIR
 
 CONFIG_FILE = CONFIG_DIR / '.diagnose.json'
-UPDATE_INTERVAL = 8 * 60 * 60
+UPDATE_INTERVAL = 8 * 3600
+
 class NoopDiagnose:
     def __getattr__(self, name):
         def noop(*args, **kwargs):
